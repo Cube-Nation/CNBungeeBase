@@ -1,4 +1,4 @@
-package de.cubenation.bungeecnabase;
+package de.cubenation.cnbungeebase;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,10 +17,11 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.event.ProxyPingEvent;
 import net.md_5.bungee.api.event.ServerConnectEvent;
+import net.md_5.bungee.api.event.ServerKickEvent;
  
 import com.google.common.eventbus.Subscribe;
 
-public class BungeeCNaBase extends Plugin implements Listener {
+public class CNBungeeBase extends Plugin implements Listener {
     
     HashMap<String, Integer> serverCounts = new HashMap<String, Integer>();
     HashMap<String, Integer> serverMaxs = new HashMap<String, Integer>();
@@ -83,6 +84,13 @@ public class BungeeCNaBase extends Plugin implements Listener {
     @Subscribe
     public void onServerConnect (ServerConnectEvent ev) {
     	updateServer(ev.getTarget());
+    }
+    
+    @Subscribe
+    public void onServerKick(ServerKickEvent event) {
+        if (event.getKickReason().equalsIgnoreCase("fallback")) {
+            event.setCancelled(true);
+        }
     }
 
     @Subscribe

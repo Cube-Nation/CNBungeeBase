@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <name>BungeeCNaBase</name>
   <groupId>de.cubenation.bungeecnabase</groupId>
-  <artifactId>BungeeCNaBase</artifactId>
+  <artifactId>CNBungeeBase</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   
   <repositories>
@@ -43,15 +43,17 @@
   </build>
   
   <dependencies>
-    <dependency>
-        <groupId>net.md-5</groupId>
-        <artifactId>bungeecord-proxy</artifactId>
-        <version>1.5-SNAPSHOT</version>
+      <dependency>
+      <groupId>net.md-5</groupId>
+      <artifactId>bungeecord-proxy</artifactId>
+      <version>1.4.7-SNAPSHOT</version>
+      <type>jar</type>
     </dependency>
     <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
-      <version>4.0.0.CR1-SNAPSHOT</version>
+      <groupId>net.md-5</groupId>
+      <artifactId>bungeecord-api</artifactId>
+      <version>1.5-SNAPSHOT</version>
+      <type>jar</type>
     </dependency>
   </dependencies>
   

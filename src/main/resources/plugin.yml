@@ -1,4 +1,4 @@
-name: BungeeCNaBase
-main: de.cubenation.bungeecnabase.BungeeCNaBase
+name: CNBungeeBase
+main: de.cubenation.cnbungeebase.CNBungeeBase
 version: 1
 author: DerFlash
