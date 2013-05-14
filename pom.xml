@@ -43,12 +43,6 @@
   </build>
   
   <dependencies>
-      <dependency>
-      <groupId>net.md-5</groupId>
-      <artifactId>bungeecord-proxy</artifactId>
-      <version>1.4.7-SNAPSHOT</version>
-      <type>jar</type>
-    </dependency>
     <dependency>
       <groupId>net.md-5</groupId>
       <artifactId>bungeecord-api</artifactId>

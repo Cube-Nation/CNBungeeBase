@@ -16,13 +16,13 @@ import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.event.ProxyPingEvent;
-import net.md_5.bungee.api.event.ServerConnectEvent;
 import net.md_5.bungee.api.event.ServerKickEvent;
  
 import com.google.common.eventbus.Subscribe;
 
 public class CNBungeeBase extends Plugin implements Listener {
     
+    HashMap<String, Integer> serverFails = new HashMap<String, Integer>();
     HashMap<String, Integer> serverCounts = new HashMap<String, Integer>();
     HashMap<String, Integer> serverMaxs = new HashMap<String, Integer>();
     HashMap<String, String> serverMotds = new HashMap<String, String>();
@@ -69,8 +69,24 @@ public class CNBungeeBase extends Plugin implements Listener {
                     serverCounts.put(server, ping.getCurrentPlayers());
                     serverMaxs.put(server, ping.getMaxPlayers());
                     serverMotds.put(server, ping.getMotd());
+                    serverFails.remove(server);
+                    
                 } else {
-                	serverCounts.put(server, -1);
+                    if (serverFails.containsKey(server)) {
+                        int last = serverFails.get(server);
+                        if (last >= 3) {
+                            serverCounts.put(server, -1);
+                            
+                        } else {
+                            serverFails.put(server, last+1);
+                            
+                        }
+                        
+                    } else {
+                        serverFails.put(server, 1);
+                        
+                    }
+                    
                 }
             }
             
@@ -81,10 +97,17 @@ public class CNBungeeBase extends Plugin implements Listener {
         updateTimer.cancel();
     }
     
+	/*
     @Subscribe
     public void onServerConnect (ServerConnectEvent ev) {
-    	updateServer(ev.getTarget());
+        final ServerInfo server = ev.getTarget();
+        
+        ProxyServer.getInstance().getScheduler().schedule(this, new Runnable() {
+            public void run() {
+                updateServer(server);
+            }}, 1, TimeUnit.SECONDS);
     }
+    */
     
     @Subscribe
     public void onServerKick(ServerKickEvent event) {
