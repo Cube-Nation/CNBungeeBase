@@ -17,8 +17,7 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.event.ProxyPingEvent;
 import net.md_5.bungee.api.event.ServerKickEvent;
- 
-import com.google.common.eventbus.Subscribe;
+import net.md_5.bungee.event.EventHandler;
 
 public class CNBungeeBase extends Plugin implements Listener {
     
@@ -109,14 +108,14 @@ public class CNBungeeBase extends Plugin implements Listener {
     }
     */
     
-    @Subscribe
+	@EventHandler
     public void onServerKick(ServerKickEvent event) {
         if (event.getKickReason().equalsIgnoreCase("fallback")) {
             event.setCancelled(true);
         }
     }
 
-    @Subscribe
+    @EventHandler
     public void onPluginMessageEvent (PluginMessageEvent event) {
     	
         if (event.getTag().equals("cnt_summon")) {
@@ -168,7 +167,7 @@ public class CNBungeeBase extends Plugin implements Listener {
         }		
 	}
 
-	@Subscribe
+	@EventHandler
     public void onProxyPing (ProxyPingEvent ev) {
         String defaultServer = ev.getConnection().getListener().getDefaultServer();
         
