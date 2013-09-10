@@ -25,6 +25,7 @@ public class CNBungeeBase extends Plugin implements Listener {
     HashMap<String, Integer> serverCounts = new HashMap<String, Integer>();
     HashMap<String, Integer> serverMaxs = new HashMap<String, Integer>();
     HashMap<String, String> serverMotds = new HashMap<String, String>();
+    int updatesRunning;
     Timer updateTimer;
 
     public void onEnable() {
@@ -35,13 +36,17 @@ public class CNBungeeBase extends Plugin implements Listener {
         updateTimer.schedule(new TimerTask() {
             @Override
             public void run() {
+                if (updatesRunning > 0) return;
+                
+//                System.out.println("Updating Serverinfos ...");
                 Map<String, ServerInfo> servers = ProxyServer.getInstance().getServers();
                 
                 for (final String server : servers.keySet()) {
+                    updatesRunning++;
                 	updateServer(servers.get(server));
                 }
             }
-        }, 5000, 5000);
+        }, 10000, 10000);
         
         
     	ProxyServer.getInstance().getPluginManager().registerCommand(this, new Command("sendall", "cnabase.sendall"){
@@ -61,32 +66,43 @@ public class CNBungeeBase extends Plugin implements Listener {
     
     protected void updateServer(ServerInfo serverInfo) {
     	final String server = serverInfo.getName();
+//        System.out.println("[ServerPing] " + server + " ...");
     	serverInfo.ping(new Callback<ServerPing>() {
 
             public void done(ServerPing ping, Throwable arg1) {
+//                System.out.println("[ServerPing] " + server + " - Response: " + ping + " - Throwable: " + arg1);
+                
                 if (ping != null) {
+//                    System.out.println("[ServerPing] " + server + " - Got pong with: " + ping);
+                    
                     serverCounts.put(server, ping.getCurrentPlayers());
                     serverMaxs.put(server, ping.getMaxPlayers());
                     serverMotds.put(server, ping.getMotd());
                     serverFails.remove(server);
                     
                 } else {
+                    
                     if (serverFails.containsKey(server)) {
                         int last = serverFails.get(server);
                         if (last >= 3) {
+//                            System.out.println("[ServerPing] " + server + " - Failed ping 3 times. Assuming down!");
                             serverCounts.put(server, -1);
                             
                         } else {
+//                            System.out.println("[ServerPing] " + server + " - Failed ping " + (last+1) + " times. Checking again...");
                             serverFails.put(server, last+1);
                             
                         }
                         
                     } else {
+//                        System.out.println("[ServerPing] " + server + " - Failed ping the first time");
                         serverFails.put(server, 1);
                         
                     }
                     
                 }
+                
+                updatesRunning--;
             }
             
         });
@@ -176,6 +192,10 @@ public class CNBungeeBase extends Plugin implements Listener {
             if (playerCount != -1) {
                 int playerMax = serverMaxs.get(defaultServer);
                 String serverMotd = serverMotds.get(defaultServer);
+                
+                if (ev.getConnection().getListener().getDefaultServer().equals("hub")) {
+                    playerCount = ProxyServer.getInstance().getOnlineCount();
+                }
                 
                 ev.setResponse(new ServerPing(ProxyServer.getInstance().getProtocolVersion(),
                         ProxyServer.getInstance().getGameVersion(), 
