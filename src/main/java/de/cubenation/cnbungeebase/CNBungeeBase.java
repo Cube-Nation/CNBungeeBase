@@ -1,14 +1,25 @@
 package de.cubenation.cnbungeebase;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.google.common.io.BaseEncoding;
+import com.google.common.io.Files;
+import com.vexsoftware.votifier.model.Vote;
+import com.vexsoftware.votifier.model.VotifierEvent;
+
 import net.md_5.bungee.api.Callback;
+import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.ServerPing;
+import net.md_5.bungee.api.ServerPing.Protocol;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -18,6 +29,7 @@ import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.event.ProxyPingEvent;
 import net.md_5.bungee.api.event.ServerKickEvent;
 import net.md_5.bungee.event.EventHandler;
+import net.md_5.bungee.event.EventPriority;
 
 public class CNBungeeBase extends Plugin implements Listener {
     
@@ -25,26 +37,48 @@ public class CNBungeeBase extends Plugin implements Listener {
     HashMap<String, Integer> serverCounts = new HashMap<String, Integer>();
     HashMap<String, Integer> serverMaxs = new HashMap<String, Integer>();
     HashMap<String, String> serverMotds = new HashMap<String, String>();
-    int updatesRunning;
+    HashMap<String, String> serverIcons = new HashMap<String, String>();
+    
+    private static String loadingIcon = null;
+    private static String offlineIcon = null;
+    
+//    int updatesRunning;
     Timer updateTimer;
 
     public void onEnable() {
+        
+        try {
+            CNBungeeBase.loadingIcon = "data:image/png;base64," + BaseEncoding.base64().encode( Files.toByteArray( new File( "loading.png" ) ) );
+            CNBungeeBase.offlineIcon = "data:image/png;base64," + BaseEncoding.base64().encode( Files.toByteArray( new File( "offline.png" ) ) );
+        } catch (IOException e) {
+        }
+        
         ProxyServer.getInstance().getPluginManager().registerListener(this, this);
+        ProxyServer.getInstance().getPluginManager().registerCommand(this, new Lobby());
         ProxyServer.getInstance().registerChannel("cnt_summon");
-
+        
         updateTimer = new Timer();
         updateTimer.schedule(new TimerTask() {
             @Override
             public void run() {
-                if (updatesRunning > 0) return;
+//                if (updatesRunning > 0) return;
                 
-//                System.out.println("Updating Serverinfos ...");
+                System.out.println("Updating Serverinfos ...");
                 Map<String, ServerInfo> servers = ProxyServer.getInstance().getServers();
                 
                 for (final String server : servers.keySet()) {
-                    updatesRunning++;
+//                    updatesRunning++;
                 	updateServer(servers.get(server));
                 }
+                
+                System.out.println("----------------");
+                System.out.println("Updated Servers:");
+                System.out.println("Servercounts:" + serverCounts);
+                System.out.println("ServerMotds:" + serverMotds);
+                System.out.println("ServerMaxs:" + serverMaxs);
+                System.out.println("ServerFails:" + serverFails);
+                System.out.println("----------------");
+
             }
         }, 10000, 10000);
         
@@ -66,43 +100,50 @@ public class CNBungeeBase extends Plugin implements Listener {
     
     protected void updateServer(ServerInfo serverInfo) {
     	final String server = serverInfo.getName();
-//        System.out.println("[ServerPing] " + server + " ...");
+        System.out.println("[ServerPing] " + server + " ...");
     	serverInfo.ping(new Callback<ServerPing>() {
 
             public void done(ServerPing ping, Throwable arg1) {
-//                System.out.println("[ServerPing] " + server + " - Response: " + ping + " - Throwable: " + arg1);
                 
                 if (ping != null) {
-//                    System.out.println("[ServerPing] " + server + " - Got pong with: " + ping);
+                    System.out.println("[ServerPing] " + server + " - Response: [" + ping.getDescription() + " | " + ping.getVersion() + " | " + ping.getPlayers() + "]");
                     
-                    serverCounts.put(server, ping.getCurrentPlayers());
-                    serverMaxs.put(server, ping.getMaxPlayers());
-                    serverMotds.put(server, ping.getMotd());
+                    if (serverFails.containsKey(server)) {
+                        System.out.println("[ServerPing] " + server + " - Finally got a pong with: " + ping);
+                    }
+                    
+                    serverCounts.put(server, ping.getPlayers().getOnline());
+                    serverMaxs.put(server, ping.getPlayers().getMax());
+                    serverMotds.put(server, ping.getDescription());
+                    serverIcons.put(server, ping.getFavicon());
                     serverFails.remove(server);
                     
                 } else {
-                    
+                    System.out.println("[ServerPing] " + server + " - Failed - Throwable: " + arg1);
+ 
                     if (serverFails.containsKey(server)) {
                         int last = serverFails.get(server);
-                        if (last >= 3) {
-//                            System.out.println("[ServerPing] " + server + " - Failed ping 3 times. Assuming down!");
-                            serverCounts.put(server, -1);
+                        if (last >= 2) {
+                            if (!serverCounts.containsKey(server) || serverCounts.get(server) != -1) {
+                                System.out.println("[ServerPing] " + server + " - Failed ping 3 times. Assuming down!");
+                                serverCounts.put(server, -1);
+                            }
                             
                         } else {
-//                            System.out.println("[ServerPing] " + server + " - Failed ping " + (last+1) + " times. Checking again...");
+                            System.out.println("[ServerPing] " + server + " - Failed ping " + (last+1) + " times. Checking again...");
                             serverFails.put(server, last+1);
                             
                         }
                         
                     } else {
-//                        System.out.println("[ServerPing] " + server + " - Failed ping the first time");
+                        System.out.println("[ServerPing] " + server + " - Failed ping the first time");
                         serverFails.put(server, 1);
                         
                     }
                     
                 }
                 
-                updatesRunning--;
+//                updatesRunning--;
             }
             
         });
@@ -111,22 +152,11 @@ public class CNBungeeBase extends Plugin implements Listener {
 	public void onDisable() {
         updateTimer.cancel();
     }
+
     
-	/*
-    @Subscribe
-    public void onServerConnect (ServerConnectEvent ev) {
-        final ServerInfo server = ev.getTarget();
-        
-        ProxyServer.getInstance().getScheduler().schedule(this, new Runnable() {
-            public void run() {
-                updateServer(server);
-            }}, 1, TimeUnit.SECONDS);
-    }
-    */
-    
-	@EventHandler
+	@EventHandler (priority = EventPriority.LOWEST)
     public void onServerKick(ServerKickEvent event) {
-        if (event.getKickReason().equalsIgnoreCase("fallback")) {
+        if (ChatColor.stripColor(event.getKickReason()).equalsIgnoreCase("fallback")) {
             event.setCancelled(true);
         }
     }
@@ -152,9 +182,11 @@ public class CNBungeeBase extends Plugin implements Listener {
             
             sendPlayersFromTo(fromServerName, toServerName);
             
+        } else if (event.getTag().equals("cnt_alert")) {
+            String pluginMessage = new String(event.getData());
+
+            ProxyServer.getInstance().broadcast(pluginMessage);
         }
-
-
     }
     
     private void sendPlayersFromTo(String fromServerName, String toServerName) {
@@ -185,43 +217,111 @@ public class CNBungeeBase extends Plugin implements Listener {
 
 	@EventHandler
     public void onProxyPing (ProxyPingEvent ev) {
-        String defaultServer = ev.getConnection().getListener().getDefaultServer();
+
+	    /*
+        System.out.println("--------");
+        System.out.println("Ping back for: " + ev.getConnection().getListener().getDefaultServer());
+        System.out.println("hn: " + ev.getConnection().getListener().getHost().getHostName());
+        System.out.println("vh: " + ev.getConnection().getVirtualHost().getHostName());
+        System.out.println("fb: " + ev.getConnection().getListener().getFallbackServer());
+        System.out.println("fh: " + ev.getConnection().getListener().getForcedHosts());
+        System.out.println("motd: " + ev.getResponse().getDescription());        
+        System.out.println("--------");
+        */
+        
+	    String defaultServer = ev.getConnection().getListener().getDefaultServer();
+	    boolean isGlobal = false;
+
+        if (defaultServer.equals("hub")) {
+            isGlobal = ev.getConnection().getVirtualHost().getHostName().equalsIgnoreCase("cube-nation.de");
+            
+            for (ServerInfo info : ProxyServer.getInstance().getServers().values()) {
+                for (String modPart : info.getMotd().split(",")) {
+                    if (modPart.equalsIgnoreCase(ev.getConnection().getVirtualHost().getHostName())) {
+                        defaultServer = info.getName();
+                        break;
+                    }
+                }
+                if (!defaultServer.equals("hub")) break;
+            }
+        }
+        Protocol protocol = ev.getResponse().getVersion();
+        
+        System.out.println("Pingback for: " + ev.getConnection().getVirtualHost().getHostName() + " (" + defaultServer + ")");
         
         if (serverCounts.containsKey(defaultServer)) {
             int playerCount = serverCounts.get(defaultServer);
+
             if (playerCount != -1) {
                 int playerMax = serverMaxs.get(defaultServer);
                 String serverMotd = serverMotds.get(defaultServer);
+                String serverIcon = serverIcons.get(defaultServer);
                 
-                if (ev.getConnection().getListener().getDefaultServer().equals("hub")) {
+                if (isGlobal) {
                     playerCount = ProxyServer.getInstance().getOnlineCount();
+                    serverMotd = "\u00A7bDer Server mit Wohlf\u00FChleffekt";
+                    playerMax = 100;
                 }
                 
-                ev.setResponse(new ServerPing(ProxyServer.getInstance().getProtocolVersion(),
-                        ProxyServer.getInstance().getGameVersion(), 
+                ev.setResponse(new ServerPing(protocol,
+                        new ServerPing.Players( playerMax, playerCount, null),
                         serverMotd,
-                        playerCount, 
-                        playerMax)
+                        serverIcon)
                         );
             	
             } else {
-                ev.setResponse(new ServerPing(ProxyServer.getInstance().getProtocolVersion(),
-                        ProxyServer.getInstance().getGameVersion(), 
+                ev.setResponse(new ServerPing(protocol,
+                        new ServerPing.Players( 100, 0, null),
                         "§4Wartungsarbeiten / Offline",
-                        0, 
-                        0)
+                        offlineIcon)
                         );
             }
             
         } else {
-            ev.setResponse(new ServerPing(ProxyServer.getInstance().getProtocolVersion(),
-                    ProxyServer.getInstance().getGameVersion(), 
+            
+            
+            
+            ev.setResponse(new ServerPing(protocol,
+                    new ServerPing.Players( 100, 0, null),
                     "§6Serverinfos werden gerade geladen",
-                    0, 
-                    0)
+                    loadingIcon)
                     );
-
         }
 
     }
+	
+	@EventHandler
+    public void onPlayerVote(VotifierEvent e){
+        Vote v = e.getVote();
+        System.out.println("Got Vote: " + v.getAddress() + " | " + v.getServiceName() + " | " + v.getTimeStamp() + " | " + v.getUsername());
+        
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        
+        try {
+            DataOutputStream out = new DataOutputStream(b);
+            
+            out.writeUTF("Bungeefier"); // Subchannel
+            
+            ByteArrayOutputStream msgbytes = new ByteArrayOutputStream();
+            DataOutputStream msgout = new DataOutputStream(msgbytes);
+            
+            msgout.writeUTF(v.getAddress());
+            msgout.writeUTF(v.getServiceName());
+            msgout.writeUTF(v.getTimeStamp());
+            msgout.writeUTF(v.getUsername());
+            
+            out.writeShort(msgbytes.toByteArray().length);
+            out.write(msgbytes.toByteArray());
+
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+        
+                
+        for (ServerInfo server : ProxyServer.getInstance().getServers().values()) {
+            server.sendData("BungeeCord", b.toByteArray());
+        }
+        
+    }
+
 }

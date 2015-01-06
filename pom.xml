@@ -6,6 +6,10 @@
   <version>0.0.1-SNAPSHOT</version>
   
   <repositories>
+        <repository>
+            <id>cna-public-repos</id>
+            <url>http://nexus.cube-nation.de/content/groups/public/</url>
+        </repository>
     <repository>
       <id>sonatype-oss-public</id>
       <url>https://oss.sonatype.org/content/groups/public/</url>
@@ -46,8 +50,13 @@
     <dependency>
       <groupId>net.md-5</groupId>
       <artifactId>bungeecord-api</artifactId>
-      <version>1.5-SNAPSHOT</version>
+      <version>1.7-SNAPSHOT</version>
     </dependency>
+        <dependency>
+            <groupId>com.vexsoftware.votifier</groupId>
+            <artifactId>Votifier</artifactId>
+            <version>1.9</version>
+        </dependency>
   </dependencies>
   
   <properties>
