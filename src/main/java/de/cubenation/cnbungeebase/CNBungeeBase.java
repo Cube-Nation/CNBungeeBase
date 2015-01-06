@@ -6,8 +6,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
+
+import com.google.common.base.Preconditions;
 
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Files;
@@ -17,6 +18,7 @@ import com.vexsoftware.votifier.model.VotifierEvent;
 import net.md_5.bungee.api.Callback;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
+import net.md_5.bungee.api.Favicon;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.ServerPing;
 import net.md_5.bungee.api.ServerPing.Protocol;
@@ -28,6 +30,7 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.event.ProxyPingEvent;
 import net.md_5.bungee.api.event.ServerKickEvent;
+import net.md_5.bungee.api.scheduler.ScheduledTask;
 import net.md_5.bungee.event.EventHandler;
 import net.md_5.bungee.event.EventPriority;
 
@@ -37,13 +40,12 @@ public class CNBungeeBase extends Plugin implements Listener {
     HashMap<String, Integer> serverCounts = new HashMap<String, Integer>();
     HashMap<String, Integer> serverMaxs = new HashMap<String, Integer>();
     HashMap<String, String> serverMotds = new HashMap<String, String>();
-    HashMap<String, String> serverIcons = new HashMap<String, String>();
+    HashMap<String, Favicon> serverFavIcons = new HashMap<String, Favicon>();
     
     private static String loadingIcon = null;
     private static String offlineIcon = null;
     
-//    int updatesRunning;
-    Timer updateTimer;
+    private ScheduledTask task;
 
     public void onEnable() {
         
@@ -57,17 +59,14 @@ public class CNBungeeBase extends Plugin implements Listener {
         ProxyServer.getInstance().getPluginManager().registerCommand(this, new Lobby());
         ProxyServer.getInstance().registerChannel("cnt_summon");
         
-        updateTimer = new Timer();
-        updateTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-//                if (updatesRunning > 0) return;
-                
-                System.out.println("Updating Serverinfos ...");
+        this.task = ProxyServer.getInstance().getScheduler().schedule(this, new Runnable() {
+
+			@Override
+			public void run() {
+				System.out.println("Updating Serverinfos ...");
+
                 Map<String, ServerInfo> servers = ProxyServer.getInstance().getServers();
-                
                 for (final String server : servers.keySet()) {
-//                    updatesRunning++;
                 	updateServer(servers.get(server));
                 }
                 
@@ -79,10 +78,10 @@ public class CNBungeeBase extends Plugin implements Listener {
                 System.out.println("ServerFails:" + serverFails);
                 System.out.println("----------------");
 
-            }
-        }, 10000, 10000);
-        
-        
+			}
+        	
+        }, 0, 10, TimeUnit.SECONDS);
+
     	ProxyServer.getInstance().getPluginManager().registerCommand(this, new Command("sendall", "cnabase.sendall"){
 
 			@Override
@@ -115,7 +114,8 @@ public class CNBungeeBase extends Plugin implements Listener {
                     serverCounts.put(server, ping.getPlayers().getOnline());
                     serverMaxs.put(server, ping.getPlayers().getMax());
                     serverMotds.put(server, ping.getDescription());
-                    serverIcons.put(server, ping.getFavicon());
+                    serverFavIcons.put(server, ping.getFaviconObject());
+                    
                     serverFails.remove(server);
                     
                 } else {
@@ -150,7 +150,7 @@ public class CNBungeeBase extends Plugin implements Listener {
     }
 
 	public void onDisable() {
-        updateTimer.cancel();
+        task.cancel();
     }
 
     
@@ -255,7 +255,7 @@ public class CNBungeeBase extends Plugin implements Listener {
             if (playerCount != -1) {
                 int playerMax = serverMaxs.get(defaultServer);
                 String serverMotd = serverMotds.get(defaultServer);
-                String serverIcon = serverIcons.get(defaultServer);
+                Favicon favIcon = serverFavIcons.get(defaultServer);
                 
                 if (isGlobal) {
                     playerCount = ProxyServer.getInstance().getOnlineCount();
@@ -263,29 +263,36 @@ public class CNBungeeBase extends Plugin implements Listener {
                     playerMax = 100;
                 }
                 
-                ev.setResponse(new ServerPing(protocol,
-                        new ServerPing.Players( playerMax, playerCount, null),
+                ServerPing ping = new ServerPing(
+                		protocol,
+                        new ServerPing.Players( playerMax, playerCount, null ),
                         serverMotd,
-                        serverIcon)
-                        );
+                        favIcon);
+                
+                ev.setResponse(ping);
             	
             } else {
-                ev.setResponse(new ServerPing(protocol,
-                        new ServerPing.Players( 100, 0, null),
+            	
+                ServerPing ping = new ServerPing(
+                		protocol,
+                        new ServerPing.Players( 0, 0, null ),
                         "§4Wartungsarbeiten / Offline",
-                        offlineIcon)
-                        );
+                        offlineIcon);
+                
+                ev.setResponse(ping);
+
             }
             
         } else {
-            
-            
-            
-            ev.setResponse(new ServerPing(protocol,
-                    new ServerPing.Players( 100, 0, null),
+        	
+            ServerPing ping = new ServerPing(
+            		protocol,
+                    new ServerPing.Players( 0, 0, null ),
                     "§6Serverinfos werden gerade geladen",
-                    loadingIcon)
-                    );
+                    loadingIcon);
+            
+            ev.setResponse(ping);
+
         }
 
     }
